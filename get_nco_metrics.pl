@@ -1,18 +1,21 @@
 #!/usr/bin/perl
-## Created by Karthikeyan P, Date: 05-April-2024, Version: 1.0, Initial release
+### Created by Karthikeyan P, Date: 05-April-2024, Version: 1.0, Initial release
 ## Script Name: get_nco_metrics.pl
 ## This Script will fetch the Performance KPI's from running instance of Netcool Omnibus ObjectServer.
 ## Script Accepts following input parameters.
 ## Netcool Home directory $NCHOME = $ARGV[0]
 ## ObjectServer Name $OSNAME = $ARGV[1]
 ## ObjectServer SQL UserName $os_user = $ARGV[2]
-## ObjectServer SQL User Password $os_pwd = $ARGV[3]
+## ObjectServer SQL User Password $os_pwd as Terminal Input.
+#
 
 use strict;
 use warnings;
 use Cwd qw(cwd);
 use File::Path qw(rmtree);
 use Data::Dumper;
+use JSON::PP;
+
 
 #### FUNCTIONS ####
 sub set_env {
@@ -221,7 +224,6 @@ sub process_journal_out  {
 }
 
 ###### MAIN #######
-#my $script_dir = "/home/netcool/tws_script/NOI";
 my $script_dir = cwd;
 my $script_name = "get_nco_metrics.pl";
 my $nco_kpi_file = "$script_dir/nco_kpi.out";
@@ -234,17 +236,23 @@ my $output_file = "$temp_dir/nco_output.txt";
 
 my $num_args = $#ARGV + 1;
 #print "$num_args\n";
-if ($num_args != 4) { 
-  print "Script needs 4 parameters as input\n";
-  print "Provide the NCHOME, ObjectServerName, ObjectServerSQLUser, ObjectServerSQLUserPassword\n";
-  print "Exit the Script\n";
+if ($num_args != 3) { 
+  print "Script needs 3 parameters as input\n";
+  print "Provide the NCHOME(Netcool Home Path), ObjectServerName & ObjectServerSQLUserName\n"; 
+  print "Enter the ObjectServerUserPassword after the script prompts\n";
   exit();
  }
 #my($NCHOME, $OSNAME) = @ARGV;
 my $NCHOME = $ARGV[0];
 my $OSNAME = $ARGV[1];
 my $os_user = $ARGV[2];
-my $os_pwd = $ARGV[3];
+#my $os_pwd = $ARGV[3];
+print "Enter your password for ObjectServer SQL User $os_user: ";
+system('stty','-echo');
+chop(my $os_pwd=<STDIN>);
+system('stty','echo');
+print "\n...processing the script\n";
+
 #print "PATH of NCHOME: $nchome\n";
 
 my($OMNIHOME, $OMNILOG) = set_env($NCHOME);
@@ -311,40 +319,48 @@ open(my $nco_FH, ">$output_file") || die "Unable to open the file for writing!."
 close($nco_FH);
 
 
-open(my $KPI_FH, ">$nco_kpi_file") || die "Unable to open the file for writing!.";
+#open(my $KPI_FH, ">$nco_kpi_file") || die "Unable to open the file for writing!.";
 
- open(my $outputfile_FH, $output_file) || die "Unable to open the file !.";
-   my @output_lines = <$outputfile_FH>;
-
-    foreach my $output_line(@output_lines) {
-      if($output_line =~ m/IBM_Tivoli_Netcool_OMNIbus/) {
-        $output_line =~ s/IBM_Tivoli_Netcool_OMNIbus-/IBM_Tivoli_Netcool_OMNIbus:\ /;
+my %out = ();
+open(my $outputfile_FH, $output_file) || die "Unable to open the file !.";
+  my @lines = <$outputfile_FH>;
+  foreach my $line(@lines) {
+     if($line =~ m/IBM_Tivoli_Netcool_OMNIbus/) {
+        my @match = $line =~ m/IBM_Tivoli_Netcool_OMNIbus-(.*)/;
+        $out{"Netcool Omnibus Version"} = $match[0];
         }
-      elsif($output_line =~ m/Triggers/) {
-        $output_line =~ s/Triggers/Triggers:\ /;
+     elsif($line =~ m/Triggers/) {
+        my @match = $line =~ m/Triggers\W+(\d+)/;
+        $out{"Trigger Count"} = $match[0];
+        }
+     elsif($line =~ m/procedures/) {
+        my @match = $line =~ m/procedures\W+(\d+)/;
+        $out{"Procedures Count"} = $match[0];
        }
-      elsif($output_line =~ m/procedures/) {
-        $output_line =~ s/procedures/procedures:\ /;
+     elsif($line =~ m/r_filters/) {
+        my @match = $line =~ m/r_filters\W+(\d+)/;
+        $out{"Restriction Filters Count"} = $match[0];
        }
-      elsif($output_line =~ m/r_filters/) {
-        $output_line =~ s/r_filters/r_filters:\ /;
+     elsif($line =~ m/status/) {
+        my @match = $line =~ m/status\W+(\d+)/;
+        $out{"Status Inserts"} = $match[0];
        }
-      elsif($output_line =~ m/status/) {
-        $output_line =~ s/status/status:\ /;
+     elsif($line =~ m/journal/) {
+        my @match = $line =~ m/journal\W+(\d+)/;
+        $out{"Journal Inserts"} = $match[0];
        }
-      elsif($output_line =~ m/journal/) {
-        $output_line =~ s/journal/journal:\ /;
-       }
-     elsif($output_line =~ m/Total time in the report period/) {
-       $output_line = substr($output_line,26);
-       }
-     elsif($output_line =~ m/Time for all triggers in report period/) {
-       $output_line = substr($output_line,26);
-       }
-   $output_line =~ s/^\s+//g;
-   print $KPI_FH "$output_line";
-     #print "$output_line";
-     }
- close($outputfile_FH);
-
+     elsif($line =~ m/Total time in the report period/) {
+       my @match = $line =~ m/.*Total time in the report period.*:\W(.*)/;
+       $out{"Profiling Period"} = $match[0];
+      }
+     elsif($line =~ m/Time for all triggers in report period/) {
+       my @match = $line =~ m/.*Time for all triggers in report period.*:\W(.*)/;
+       $out{"Trigger Time"} = $match[0];
+      }
+  }
+close($outputfile_FH);
+#print Dumper(\%out);
+my $json =  encode_json(\%out);
+open(my $KPI_FH, ">$nco_kpi_file") || die "Unable to open the file for writing!.";
+  print $KPI_FH "$json\n";
 close($KPI_FH);
