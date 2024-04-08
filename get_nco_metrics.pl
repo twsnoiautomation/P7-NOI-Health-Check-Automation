@@ -10,6 +10,7 @@
 
 use strict;
 use warnings;
+use Cwd qw(cwd);
 use File::Path qw(rmtree);
 use Data::Dumper;
 
@@ -220,7 +221,8 @@ sub process_journal_out  {
 }
 
 ###### MAIN #######
-my $script_dir = "/home/netcool/tws_script/NOI";
+#my $script_dir = "/home/netcool/tws_script/NOI";
+my $script_dir = cwd;
 my $script_name = "get_nco_metrics.pl";
 my $nco_kpi_file = "$script_dir/nco_kpi.out";
 my $temp_dir = "$script_dir/temp";
