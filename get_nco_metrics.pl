@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 ### Created by Karthikeyan P, Date: 05-April-2024, Version: 1.0, Initial release
-## Script Name: get_nco_metrics.pl
-## This Script will fetch the Performance KPI's from running instance of Netcool Omnibus ObjectServer.
-## Script Accepts following input parameters.
-## Netcool Home directory $NCHOME = $ARGV[0]
-## ObjectServer Name $OSNAME = $ARGV[1]
-## ObjectServer SQL UserName $os_user = $ARGV[2]
-## ObjectServer SQL User Password $os_pwd as Terminal Input.
-#
+### Script Name: get_nco_metrics.pl
+### This Script will fetch the Performance KPI's from running instance of Netcool Omnibus ObjectServer.
+### Script Accepts following input parameters.
+### Netcool Home directory $NCHOME = $ARGV[0]
+### ObjectServer Name $OSNAME = $ARGV[1]
+### ObjectServer SQL UserName $os_user = $ARGV[2]
+### ObjectServer SQL User Password $os_pwd as Terminal Input.
+##
 
 use strict;
 use warnings;
@@ -113,10 +113,10 @@ sub create_procedure_sql {
   close($SQL_FH);
   }
 
-sub create_rfilters_sql {
+sub create_total_events_sql {
   my($my_sql_file) = @_;
   open(my $SQL_FH, ">$my_sql_file") || die "Unable to open the file for writing!.";
-    print $SQL_FH "select count(*) as r_filters from security.restriction_filters;\n";
+    print $SQL_FH "select count(*) as total_events from alerts.status;\n";
     print $SQL_FH "go\n";
   close($SQL_FH);
  }
@@ -129,10 +129,26 @@ sub create_status_count_sql {
   close($SQL_FH);
 }
 
+sub create_connections_count_sql {
+  my($my_sql_file) = @_;
+  open(my $SQL_FH, ">$my_sql_file") || die "Unable to open the file for writing!.";
+    print $SQL_FH "select NumClients as num_clients from master.stats where StatTime in (select max(StatTime) from master.stats);\n";
+    print $SQL_FH "go\n";
+  close($SQL_FH);
+}
+
 sub create_journal_count_sql {
   my($my_sql_file) = @_;
   open(my $SQL_FH, ">$my_sql_file") || die "Unable to open the file for writing!.";
-    print $SQL_FH "select JournalInserts as journal from master.stats where StatTime in (select max(StatTime) from master.stats);\n";
+    print $SQL_FH "select count(*) as journal from alerts.journal;\n";
+    print $SQL_FH "go\n";
+  close($SQL_FH);
+}
+
+sub create_details_count_sql {
+  my($my_sql_file) = @_;
+  open(my $SQL_FH, ">$my_sql_file") || die "Unable to open the file for writing!.";
+    print $SQL_FH "select count(*) as details_count from alerts.details;\n";
     print $SQL_FH "go\n";
   close($SQL_FH);
 }
@@ -174,20 +190,19 @@ sub process_procedure_out {
   close($procout_FH);
 }
 
-sub process_rfilters_out {
-  my($rfilters_output_file) = @_;
-  my(@rfilter_ctr);
-  open(my $rfilters_FH, $rfilters_output_file) || die "Unable to open the file !.";
-  my @rfilters_out = <$rfilters_FH>;
-  foreach my $rf_outline(@rfilters_out) {
-    if(($rf_outline =~ m/r_filters|\d+/) && !($rf_outline =~ m/row affected/)){
-      chomp($rf_outline);
-      push(@rfilter_ctr, $rf_outline);
+sub process_total_events_out {
+  my($total_events_output_file) = @_;
+  my(@total_events_ctr);
+  open(my $total_events_FH, $total_events_output_file) || die "Unable to open the file !.";
+  my @total_events_out = <$total_events_FH>;
+  foreach my $event_out(@total_events_out) {
+    if(($event_out =~ m/total_events|\d+/) && !($event_out =~ m/row affected/)){
+      chomp($event_out);
+      push(@total_events_ctr, $event_out);
      }
   }
-  #print "@rfilter_ctr\n";
-  return @rfilter_ctr;
-  close($rfilters_FH);
+  return @total_events_ctr;
+  close($total_events_FH);
 }
 
 sub process_status_out {
@@ -222,6 +237,37 @@ sub process_journal_out  {
   return @journal_ctr;
   close($journal_FH);
 }
+
+sub process_details_out  {
+  my($details_output_file) = @_;
+  my(@details_ctr);
+  open(my $details_FH, $details_output_file) || die "Unable to open the file !.";
+  my @details_out = <$details_FH>;
+  foreach my $details_outline(@details_out) {
+  if(($details_outline =~ m/details_count|\d+/) && !($details_outline =~ m/row affected/)){
+    chomp($details_outline);
+    push(@details_ctr, $details_outline);
+     }
+       }
+  return @details_ctr;
+  close($details_FH);
+  }
+
+
+sub process_connections_out  {
+  my($connections_output_file) = @_;
+  my(@connections_ctr);
+  open(my $connections_FH, $connections_output_file) || die "Unable to open the file !.";
+  my @connections_out = <$connections_FH>;
+  foreach my $connections_outline(@connections_out) {
+  if(($connections_outline =~ m/num_clients|\d+/) && !($connections_outline =~ m/row affected/)){
+    chomp($connections_outline);
+    push(@connections_ctr, $connections_outline);
+     }
+       }
+  return @connections_ctr;
+  close($connections_FH);
+  }
 
 ###### MAIN #######
 my $script_dir = cwd;
@@ -288,11 +334,11 @@ my $procedure_out_file = "$temp_dir/procedure_out.txt";
 exec_os_sql($OMNIHOME, $OSNAME, $os_user, $os_pwd, $procedure_sql_file, $procedure_out_file);
 my @procedures = process_procedure_out($procedure_out_file);
 
-my $rfilters_sql_file = "$temp_dir/rfilters.sql";
-create_rfilters_sql($rfilters_sql_file);
-my $rfilters_out_file = "$temp_dir/rfilters_out.txt";
-exec_os_sql($OMNIHOME, $OSNAME, $os_user, $os_pwd, $rfilters_sql_file, $rfilters_out_file);
-my @rfilters = process_rfilters_out($rfilters_out_file);
+my $total_events_sql_file = "$temp_dir/total_events.sql";
+create_total_events_sql($total_events_sql_file);
+my $total_events_out_file = "$temp_dir/total_events_out.txt";
+exec_os_sql($OMNIHOME, $OSNAME, $os_user, $os_pwd, $total_events_sql_file, $total_events_out_file);
+my @total_events = process_total_events_out($total_events_out_file);
 
 my $status_count_sql_file = "$temp_dir/status_count.sql";
 create_status_count_sql($status_count_sql_file);
@@ -306,6 +352,19 @@ my $journal_count_out_file = "$temp_dir/journal_count_out.txt";
 exec_os_sql($OMNIHOME, $OSNAME, $os_user, $os_pwd, $journal_count_sql_file, $journal_count_out_file);
 my @journal_stats = process_journal_out($journal_count_out_file);
 
+my $details_count_sql_file = "$temp_dir/details_count.sql";
+create_details_count_sql($details_count_sql_file);
+my $details_count_out_file = "$temp_dir/details_count_out.txt";
+exec_os_sql($OMNIHOME, $OSNAME, $os_user, $os_pwd, $details_count_sql_file, $details_count_out_file);
+my @details_stats = process_details_out($details_count_out_file);
+
+my $connections_count_sql_file = "$temp_dir/connections_count.sql";
+create_connections_count_sql($connections_count_sql_file);
+my $connections_count_out_file = "$temp_dir/connections_count_out.txt";
+exec_os_sql($OMNIHOME, $OSNAME, $os_user, $os_pwd, $connections_count_sql_file, $connections_count_out_file);
+my @connections_stats = process_connections_out($connections_count_out_file);
+
+
 open(my $nco_FH, ">$output_file") || die "Unable to open the file for writing!.";
   print $nco_FH "$nco_version\n";
   print $nco_FH "$profile_flag";
@@ -313,9 +372,11 @@ open(my $nco_FH, ">$output_file") || die "Unable to open the file for writing!."
   print $nco_FH "$trigger_stats";
   print $nco_FH "@triggers\n";
   print $nco_FH "@procedures\n";
-  print $nco_FH "@rfilters\n";
+  print $nco_FH "@total_events\n";
   print $nco_FH "@status_stats\n";
   print $nco_FH "@journal_stats\n";
+  print $nco_FH "@details_stats\n";
+  print $nco_FH "@connections_stats\n";
 close($nco_FH);
 
 
@@ -327,35 +388,47 @@ open(my $outputfile_FH, $output_file) || die "Unable to open the file !.";
   foreach my $line(@lines) {
      if($line =~ m/IBM_Tivoli_Netcool_OMNIbus/) {
         my @match = $line =~ m/IBM_Tivoli_Netcool_OMNIbus-(.*)/;
-        $out{"Netcool Omnibus Version"} = $match[0];
+        $out{"NetcoolOmnibusVersion"} = $match[0];
         }
      elsif($line =~ m/Triggers/) {
         my @match = $line =~ m/Triggers\W+(\d+)/;
-        $out{"Trigger Count"} = $match[0];
+        $out{"TriggersCount"} = $match[0];
         }
      elsif($line =~ m/procedures/) {
         my @match = $line =~ m/procedures\W+(\d+)/;
-        $out{"Procedures Count"} = $match[0];
+        $out{"ProceduresCount"} = $match[0];
        }
-     elsif($line =~ m/r_filters/) {
-        my @match = $line =~ m/r_filters\W+(\d+)/;
-        $out{"Restriction Filters Count"} = $match[0];
+     elsif($line =~ m/total_events/) {
+        my @match = $line =~ m/total_events\W+(\d+)/;
+        $out{"EventCount"} = $match[0];
        }
      elsif($line =~ m/status/) {
         my @match = $line =~ m/status\W+(\d+)/;
-        $out{"Status Inserts"} = $match[0];
+        $out{"StatusInserts"} = $match[0];
        }
      elsif($line =~ m/journal/) {
         my @match = $line =~ m/journal\W+(\d+)/;
-        $out{"Journal Inserts"} = $match[0];
+        $out{"JournalCount"} = $match[0];
+       }
+     elsif($line =~ m/details_count/) {
+        my @match = $line =~ m/details_count\W+(\d+)/;
+        $out{"DetailCount"} = $match[0];
+       }
+     elsif($line =~ m/num_clients/) {
+        my @match = $line =~ m/num_clients\W+(\d+)/;
+        $out{"ObjectServerConnections"} = $match[0];
        }
      elsif($line =~ m/Total time in the report period/) {
        my @match = $line =~ m/.*Total time in the report period.*:\W(.*)/;
-       $out{"Profiling Period"} = $match[0];
+       $out{"ProfilingPeriod"} = $match[0];
       }
      elsif($line =~ m/Time for all triggers in report period/) {
        my @match = $line =~ m/.*Time for all triggers in report period.*:\W(.*)/;
-       $out{"Trigger Time"} = $match[0];
+       $out{"TriggersTime"} = $match[0];
+      }
+     elsif($line =~ m/^Profile:\W\w+/) {
+       my @match = $line =~ m/^Profile:\W(\w+)/;
+        $out{"ProfilingEnabled"} = $match[0];
       }
   }
 close($outputfile_FH);
