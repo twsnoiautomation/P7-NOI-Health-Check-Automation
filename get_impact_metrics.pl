@@ -152,6 +152,30 @@ sub get_eventproc_threads {
   close($event_FH);
   return $max_threads[0], $min_threads[0];
 }
+
+sub get_cpu_memory {
+  my($cpu_file, $memory_file) = @_;
+  my(@cpus, @memory);
+  open(my $cpu_FH, $cpu_file) || die "Unable to open the file !.";
+  my @cpu_lines = <$cpu_FH>;
+  foreach my $cpu_line(@cpu_lines) {
+    if($cpu_line =~ m/^CPU\(s\)\:/) {
+        @cpus = $cpu_line =~ m/CPU\(s\)\:\W+(\d+)/;
+      }
+    }
+  close($cpu_FH);
+  open(my $memory_FH, $memory_file) || die "Unable to open the file !.";
+  my @memory_lines = <$memory_FH>;
+  foreach my $memory_line(@memory_lines) {
+    if($memory_line =~ m/Mem:/) {
+        @memory = $memory_line =~ m/Mem:\W+(\d+)/;
+      }
+   }
+  close($memory_FH);
+  return $cpus[0], $memory[0];
+
+}
+
 #################
 
 ### MAIN ###
@@ -219,6 +243,18 @@ if ($eventthread_ctr == 2) { ## jvm_values Array should contain only 2 values.
     }
 else {
   print "Unable to get the Event Processor Max/Min Number of ThreadsValues, Exit";
+  exit;
+   }
+my $cpu_info = "$temp_dir/ENV_CPU_info/linuxcpuinfo_lscpu.log";
+my $mem_info = "$temp_dir/ENV_CPU_info/linuxcpuinfo_free.log";
+my @cpu_mem_info = get_cpu_memory($cpu_info, $mem_info);
+my $cpu_mem_ctr = @cpu_mem_info;
+if ($cpu_mem_ctr == 2) { ## jvm_values Array should contain only 2 values.
+  $out{"CPUs"} = $cpu_mem_info[0]; ## First Value in Array is Max Java Memory Heap Size.
+  $out{"Memory"} = $cpu_mem_info[1]; ## Second Value in Array is Min Java Memory Heap Size.
+    }
+else {
+  print "Unable to get the CPU & Phtsical Memory Details of Impact Host System, Exit";
   exit;
    }
 
