@@ -1,0 +1,126 @@
+
+################################################################################
+#Create the collection zip file at 
+#/home/netcool/tws_script/gateways/nco_gateways.zip?
+#
+#[1] Yes
+#[2] No
+#
+
+10.YesNo=1
+
+################################################################################
+#Enter the number of the IBM Support Assistant Data Collector option you 
+#want to execute.
+#
+#[1] OMNIbus Collector
+#[2] Quit
+#
+
+20.CollectionOption=1
+
+################################################################################
+#Please enter the following:
+#
+
+################################################################################
+#Please select the collection type you want to run
+#
+#[1] Collect All
+#[2] Customised Collection
+#
+
+30.SelectListOption=2
+
+################################################################################
+#All values for the input request have been obtained. Please select how 
+#you would like to proceed.
+#
+#[1] Process input and continue collection
+#[2] Cancel the collection
+#[3] Go back and change input
+#
+
+40.OptionToCompleteInputDialog=1
+
+################################################################################
+#Please enter the following:
+#
+
+################################################################################
+#Collect Installation Data
+#
+#[1] Yes
+#[2] No
+#
+
+50.SelectListOption=1
+
+################################################################################
+#Collect Probe Data
+#
+#[1] Yes
+#[2] No
+#
+
+60.SelectListOption=2
+
+################################################################################
+#Collect Gateway Data
+#
+#[1] Yes
+#[2] No
+#
+
+70.SelectListOption=1
+
+################################################################################
+#Collect Object Server Data
+#
+#[1] Yes
+#[2] No
+#
+
+80.SelectListOption=2
+
+################################################################################
+#All values for the input request have been obtained. Please select how 
+#you would like to proceed.
+#
+#[1] Process input and continue collection
+#[2] Cancel the collection
+#[3] Go back and change input
+#
+
+90.OptionToCompleteInputDialog=1
+
+################################################################################
+#Would you like to transfer the data collection archive file?
+#
+
+################################################################################
+#For other ways to exchange data with IBM, see http://www14.software.ibm.
+#com/webapp/set2/sas/f/handbook/policies.html#exchange
+#
+
+################################################################################
+#I would like to:
+#
+#[1] send using secure transfer to IBM Support (HTTPS)
+#[2] send using FTP to IBM Support (unencrypted)
+#[3] send using FTP to another location (unencrypted)
+#[4] end the collection without sending
+#
+
+100.SelectListOption=4
+
+################################################################################
+#All values for the input request have been obtained. Please select how 
+#you would like to proceed.
+#
+#[1] Process input and continue collection
+#[2] Cancel the collection
+#[3] Go back and change input
+#
+
+110.OptionToCompleteInputDialog=2
